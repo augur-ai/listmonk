@@ -108,6 +108,9 @@ CREATE TABLE campaigns (
     status           campaign_status NOT NULL DEFAULT 'draft',
     tags             VARCHAR(100)[],
 
+    -- Subscribers on any of these lists are skipped, even if they're on one of the campaign's lists.
+    exclude_list_ids INT[] NOT NULL DEFAULT '{}',
+
     -- The subscription statuses of subscribers to which a campaign will be sent.
     -- For opt-in campaigns, this will be 'unsubscribed'.
     type campaign_type DEFAULT 'regular',

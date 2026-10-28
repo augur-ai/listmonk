@@ -25,7 +25,7 @@ WITH tpl AS (
 camp AS (
     INSERT INTO campaigns (uuid, type, name, subject, from_email, body, altbody,
         content_type, send_at, headers, attribs, tags, messenger, template_id, to_send,
-        max_subscriber_id, archive, archive_slug, archive_template_id, archive_meta, body_source)
+        max_subscriber_id, archive, archive_slug, archive_template_id, archive_meta, body_source, exclude_list_ids)
         SELECT $1, $2, $3, $4, $5,
             -- body
             COALESCE(NULLIF($6, ''), (SELECT body FROM tpl), ''),
@@ -40,7 +40,8 @@ camp AS (
             $18,
             $19,
             -- body_source
-            COALESCE($21, (SELECT body_source FROM tpl))
+            COALESCE($21, (SELECT body_source FROM tpl)),
+            COALESCE($22::INT[], '{}')
         RETURNING id
 ),
 med AS (
@@ -211,6 +212,13 @@ counts AS (
             END
         )
     JOIN subscribers s ON (s.id = sl.subscriber_id AND s.status != 'blocklisted')
+    -- Skip subscribers who are on any of the campaign's excluded lists.
+    WHERE NOT EXISTS (
+        SELECT 1 FROM subscriber_lists ex
+        WHERE ex.subscriber_id = sl.subscriber_id
+            AND ex.list_id = ANY(camps.exclude_list_ids)
+            AND ex.status = 'confirmed'
+    )
     GROUP BY camps.id
 ),
 updateCounts AS (
@@ -309,7 +317,8 @@ SELECT link_clicks.campaign_id,
 -- name: get-running-campaign
 -- Returns the metadata for a running campaign that is required by next-campaign-subscribers to retrieve
 -- a batch of campaign subscribers for processing.
-SELECT campaigns.id AS campaign_id, campaigns.type as campaign_type, last_subscriber_id, max_subscriber_id, lists.id AS list_id
+SELECT campaigns.id AS campaign_id, campaigns.type as campaign_type, last_subscriber_id, max_subscriber_id,
+    campaigns.exclude_list_ids, lists.id AS list_id
     FROM campaigns
     JOIN campaign_lists ON (campaign_lists.campaign_id = campaigns.id)
     JOIN lists ON (lists.id = campaign_lists.list_id)
@@ -347,6 +356,13 @@ subs AS (
             AND s.id <= $4
              -- Subscriber should not be blacklisted.
             AND s.status != 'blocklisted'
+            -- Skip subscribers who are on any of the campaign's excluded lists.
+            AND NOT EXISTS (
+                SELECT 1 FROM subscriber_lists ex
+                WHERE ex.subscriber_id = s.id
+                    AND ex.list_id = ANY($7::INT[])
+                    AND ex.status = 'confirmed'
+            )
             AND (
                 -- If it's an optin campaign and the list is double-optin, only pick unconfirmed subscribers.
                 ($2 = 'optin' AND sl.status = 'unconfirmed' AND campLists.optin = 'double')
@@ -412,6 +428,7 @@ WITH camp AS (
         archive_template_id=(CASE WHEN $7::content_type = 'visual' THEN NULL ELSE $17::INT END),
         archive_meta=$18,
         body_source=$20,
+        exclude_list_ids=COALESCE($21::INT[], '{}'),
         updated_at=NOW()
     WHERE id = $1 RETURNING id
 ),

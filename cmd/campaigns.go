@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -717,6 +718,13 @@ func (a *App) validateCampaignFields(c campReq) (campReq, error) {
 
 	if len(c.ListIDs) == 0 {
 		return c, errors.New(a.i18n.T("campaigns.fieldInvalidListIDs"))
+	}
+
+	// A list can't be both sent to and excluded.
+	for _, id := range c.ExcludeListIDs {
+		if slices.Contains(c.ListIDs, int(id)) {
+			return c, errors.New(a.i18n.T("campaigns.fieldInvalidExcludeLists"))
+		}
 	}
 
 	if !a.manager.HasMessenger(c.Messenger) {

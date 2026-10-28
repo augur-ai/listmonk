@@ -51,6 +51,7 @@ type Campaign struct {
 	Status            string          `db:"status" json:"status"`
 	ContentType       string          `db:"content_type" json:"content_type"`
 	Tags              pq.StringArray  `db:"tags" json:"tags"`
+	ExcludeListIDs    pq.Int64Array   `db:"exclude_list_ids" json:"exclude_lists"`
 	Headers           Headers         `db:"headers" json:"headers"`
 	Attribs           JSON            `db:"attribs" json:"attribs"`
 	TemplateID        null.Int        `db:"template_id" json:"template_id"`

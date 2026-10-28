@@ -445,6 +445,7 @@ export default Vue.extend({
         name,
         subject: c.subject,
         lists: c.lists.map((l) => l.id),
+        exclude_lists: c.excludeLists,
         type: c.type,
         from_email: c.fromEmail,
         content_type: c.contentType,

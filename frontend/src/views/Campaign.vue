@@ -81,6 +81,10 @@
                 <list-selector v-model="form.lists" :selected="form.lists" :all="lists.results" :disabled="!canEdit"
                   :label="$t('globals.terms.lists')" :placeholder="$t('campaigns.sendToLists')" />
 
+                <list-selector :selected="excludeLists" :all="lists.results" :disabled="!canEdit"
+                  :label="$t('campaigns.excludeLists')" :placeholder="$t('campaigns.excludeListsPlaceholder')"
+                  :message="$t('campaigns.excludeListsHelp')" @input="onExcludeLists" data-cy="exclude-lists" />
+
                 <div class="columns">
                   <div class="column is-6">
                     <b-field :label="$tc('globals.terms.messenger')" label-position="on-border">
@@ -375,6 +379,7 @@ export default Vue.extend({
         attribsStr: '{}',
         messenger: 'email',
         lists: [],
+        excludeListIds: [],
         tags: [],
         sendAt: null,
         content: {
@@ -435,6 +440,10 @@ export default Vue.extend({
       }
 
       this.form.media.push(o);
+    },
+
+    onExcludeLists(lists) {
+      this.form.excludeListIds = lists.map((l) => l.id);
     },
 
     isUnsaved() {
@@ -520,6 +529,7 @@ export default Vue.extend({
           headersStr: JSON.stringify(data.headers, null, 4),
           archiveMetaStr: data.archiveMeta ? JSON.stringify(data.archiveMeta, null, 4) : '{}',
           attribsStr: data.attribs ? JSON.stringify(data.attribs, null, 4) : '{}',
+          excludeListIds: data.excludeLists || [],
 
           // The structure that is populated by editor input event.
           content: {
@@ -571,6 +581,7 @@ export default Vue.extend({
         name: this.form.name,
         subject: this.form.subject,
         lists: this.form.lists.map((l) => l.id),
+        exclude_lists: this.form.excludeListIds,
         from_email: this.form.fromEmail,
         content_type: this.form.content.contentType,
         messenger: this.form.messenger,
@@ -594,6 +605,7 @@ export default Vue.extend({
         name: this.form.name,
         subject: this.form.subject,
         lists: this.form.lists.map((l) => l.id),
+        exclude_lists: this.form.excludeListIds,
         from_email: this.form.fromEmail,
         messenger: this.form.messenger,
         type: 'regular',
@@ -717,6 +729,14 @@ export default Vue.extend({
 
     canArchive() {
       return this.data.status !== 'cancelled' && this.data.type !== 'optin';
+    },
+
+    excludeLists() {
+      if (!this.lists.results) {
+        return [];
+      }
+
+      return this.lists.results.filter((l) => this.form.excludeListIds.indexOf(l.id) > -1);
     },
 
     selectedLists() {
